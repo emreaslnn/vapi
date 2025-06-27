@@ -290,9 +290,13 @@
             border: 1px solid rgba(244, 67, 54, 0.3);
         }
 
-        .notification.success {
-            background: rgba(76, 175, 80, 0.2);
-            border: 1px solid rgba(76, 175, 80, 0.3);
+        /* Vapi varsayılan butonunu gizle */
+        [id*="vapi"] {
+            display: none !important;
+        }
+        
+        .vapi-btn {
+            display: none !important;
         }
     </style>
 </head>
@@ -374,8 +378,88 @@
         <div class="notification" id="notification"></div>
     </div>
 
-    <!-- Vapi Web SDK -->
-    <script src="https://cdn.jsdelivr.net/npm/@vapi-ai/web@latest/dist/index.umd.js"></script>
+    <!-- Vapi Web SDK - Resmi HTML Script -->
+    <script>
+        var vapiInstance = null;
+        const assistant = ""; // Assistant ID buraya gelecek
+        const apiKey = "81111a7a-bad1-4d91-b79b-03f8f29aa4b4"; // Public API Key
+        const buttonConfig = {
+            position: "bottom-right", // Varsayılan butonu gizlemek için
+            offset: "40px",
+            width: "50px",
+            height: "50px",
+            idle: {
+                color: `linear-gradient(135deg, #667eea 0%, #764ba2 100%)`,
+                type: "pill", 
+                title: "AI Asistan",
+                subtitle: "Konuşmaya başlamak için tıklayın",
+                icon: `https://unpkg.com/lucide@latest/dist/esm/icons/phone.js`,
+            },
+            loading: {
+                color: `linear-gradient(135deg, #f093fb 0%, #f5576c 100%)`,
+                type: "pill", 
+                title: "Bağlanıyor...",
+                subtitle: "Lütfen bekleyin",
+                icon: `https://unpkg.com/lucide@latest/dist/esm/icons/loader-2.js`,
+            },
+            active: {
+                color: `linear-gradient(135deg, #4CAF50 0%, #45a049 100%)`,
+                type: "pill",
+                title: "Konuşuyor",
+                subtitle: "Aramayı sonlandırmak için tıklayın", 
+                icon: `https://unpkg.com/lucide@latest/dist/esm/icons/phone-off.js`,
+            },
+        };
+
+        (function (d, t) {
+            var g = document.createElement(t),
+                s = d.getElementsByTagName(t)[0];
+            g.src = "https://cdn.jsdelivr.net/gh/VapiAI/html-script-tag@latest/dist/assets/index.js";
+            g.defer = true;
+            g.async = true;
+            s.parentNode.insertBefore(g, s);
+            
+            g.onload = function () {
+                console.log('Vapi SDK yüklendi');
+                
+                // Vapi instance'ını başlat
+                vapiInstance = window.vapiSDK.run({
+                    apiKey: apiKey,
+                    assistant: assistant,
+                    config: buttonConfig,
+                });
+
+                // Vapi event'lerini dinle
+                if (vapiInstance) {
+                    vapiInstance.on('call-start', () => {
+                        console.log('Vapi call started');
+                        onCallStart();
+                    });
+
+                    vapiInstance.on('call-end', () => {
+                        console.log('Vapi call ended'); 
+                        onCallEnd();
+                    });
+
+                    vapiInstance.on('volume-level', (volume) => {
+                        onVolumeLevel(volume);
+                    });
+
+                    vapiInstance.on('error', (error) => {
+                        console.error('Vapi error:', error);
+                        onCallError(error);
+                    });
+
+                    showNotification('Vapi SDK hazır - Konuşmaya başlayabilirsiniz!', 'success');
+                }
+            };
+
+            g.onerror = function() {
+                console.error('Vapi SDK yüklenemedi');
+                showNotification('Vapi SDK yüklenemedi. Internet bağlantınızı kontrol edin.', 'error');
+            };
+        })(document, "script");
+    </script>
     
     <script>
         let vapi = null;
@@ -383,6 +467,47 @@
         let callStartTime = null;
         let durationInterval = null;
         let audioVisualizerInterval = null;
+
+        // Vapi event handlers
+        function onCallStart() {
+            isCallActive = true;
+            callStartTime = new Date();
+            
+            document.getElementById('callStatus').textContent = 'Bağlandı';
+            document.getElementById('callDuration').classList.remove('hidden');
+            document.getElementById('avatar').classList.add('connected');
+            document.getElementById('callBtn').classList.add('hidden');
+            document.getElementById('endBtn').classList.remove('hidden');
+            
+            // Duration timer başlat
+            durationInterval = setInterval(updateCallDuration, 1000);
+            
+            // Audio visualizer başlat
+            audioVisualizerInterval = setInterval(animateAudioVisualizer, 150);
+            
+            showNotification('Arama başladı', 'success');
+        }
+
+        function onCallEnd() {
+            resetCallUI();
+            showNotification('Arama sonlandı');
+        }
+
+        function onVolumeLevel(volume) {
+            // Ses seviyesine göre visualizer yoğunluğunu ayarla
+            const bars = document.querySelectorAll('.audio-bar');
+            const intensity = volume * 30 + 5;
+            bars.forEach((bar, index) => {
+                const randomHeight = Math.random() * intensity + 5;
+                bar.style.height = randomHeight + 'px';
+            });
+        }
+
+        function onCallError(error) {
+            console.error('Vapi hatası:', error);
+            showNotification('Hata: ' + error.message, 'error');
+            resetCallUI();
+        }
 
         // Zamanı güncelle
         function updateTime() {
@@ -428,92 +553,37 @@
             }, 3000);
         }
 
-        // Vapi istemcisini başlat
+        // Vapi istemcisini başlat (Custom button için)
         function initializeVapi() {
             const publicKey = document.getElementById('publicKey').value;
+            const assistantId = document.getElementById('assistantId').value;
             
             if (!publicKey) {
                 showNotification('Public Key gerekli', 'error');
                 return false;
             }
 
-            try {
-                if (typeof window.Vapi !== 'undefined') {
-                    vapi = new window.Vapi(publicKey);
-                    console.log('Vapi başarıyla başlatıldı');
-                } else {
-                    throw new Error('Vapi SDK yüklenemedi');
-                }
-                
-                // Event listener'ları ekle
-                vapi.on('call-start', () => {
-                    console.log('Arama başladı');
-                    isCallActive = true;
-                    callStartTime = new Date();
-                    
-                    document.getElementById('callStatus').textContent = 'Bağlandı';
-                    document.getElementById('callDuration').classList.remove('hidden');
-                    document.getElementById('avatar').classList.add('connected');
-                    document.getElementById('callBtn').classList.add('hidden');
-                    document.getElementById('endBtn').classList.remove('hidden');
-                    
-                    // Duration timer başlat
-                    durationInterval = setInterval(updateCallDuration, 1000);
-                    
-                    // Audio visualizer başlat
-                    audioVisualizerInterval = setInterval(animateAudioVisualizer, 150);
-                    
-                    showNotification('Arama başladı', 'success');
-                });
-
-                vapi.on('call-end', () => {
-                    console.log('Arama bitti');
-                    resetCallUI();
-                    showNotification('Arama sonlandı');
-                });
-
-                vapi.on('volume-level', (volume) => {
-                    // Ses seviyesine göre visualizer yoğunluğunu ayarla
-                    const bars = document.querySelectorAll('.audio-bar');
-                    const intensity = volume * 30 + 5;
-                    bars.forEach((bar, index) => {
-                        const randomHeight = Math.random() * intensity + 5;
-                        bar.style.height = randomHeight + 'px';
-                    });
-                });
-
-                vapi.on('error', (error) => {
-                    console.error('Vapi hatası:', error);
-                    showNotification('Hata: ' + error.message, 'error');
-                    resetCallUI();
-                });
-
-                return true;
-            } catch (error) {
-                console.error('Vapi başlatma hatası:', error);
-                showNotification('Başlatma hatası: ' + error.message, 'error');
+            if (!vapiInstance) {
+                showNotification('Vapi SDK henüz yüklenmedi, lütfen bekleyin...', 'error');
                 return false;
             }
+
+            return true;
         }
 
-        // Aramayı başlat
+        // Aramayı başlat (Custom button)
         async function startCall() {
-            if (!initializeVapi()) {
+            if (!vapiInstance) {
+                showNotification('Vapi SDK henüz hazır değil', 'error');
                 return;
             }
 
-            const assistantId = document.getElementById('assistantId').value;
-            
             try {
                 document.getElementById('callStatus').textContent = 'Aranıyor...';
                 document.getElementById('avatar').classList.add('calling');
                 
-                const callConfig = {};
-                if (assistantId) {
-                    callConfig.assistant = assistantId;
-                }
-
-                await vapi.start(callConfig);
+                // Vapi SDK'nın kendi start metodunu kullan
+                await vapiInstance.start();
                 
             } catch (error) {
                 console.error('Arama başlatma hatası:', error);
@@ -522,12 +592,11 @@
             }
         }
 
-        // Aramayı sonlandır
+        // Aramayı sonlandır (Custom button)
         function endCall() {
-            if (vapi && isCallActive) {
-                vapi.stop();
+            if (vapiInstance && isCallActive) {
+                vapiInstance.stop();
             }
-            resetCallUI();
         }
 
         // UI'yi sıfırla
@@ -575,8 +644,8 @@
             const isMuted = this.classList.contains('active');
             this.textContent = isMuted ? '🎤❌' : '🎤';
             
-            if (vapi && isCallActive) {
-                vapi.setMuted(isMuted);
+            if (vapiInstance && isCallActive) {
+                vapiInstance.setMuted(isMuted);
             }
         });
 
@@ -594,14 +663,12 @@
             
             // SDK kontrol
             setTimeout(() => {
-                console.log('Vapi SDK durumu:', typeof window.Vapi);
+                console.log('Vapi SDK durumu:', typeof window.vapiSDK);
                 
-                if (typeof window.Vapi === 'undefined') {
+                if (typeof window.vapiSDK === 'undefined') {
                     showNotification('Vapi SDK yüklenemedi. Sayfayı yenileyin.', 'error');
-                } else {
-                    showNotification('Vapi SDK hazır', 'success');
                 }
-            }, 2000);
+            }, 3000);
 
             // LocalStorage'dan ayarları yükle
             const savedAssistantId = localStorage.getItem('vapi_assistant_id');
