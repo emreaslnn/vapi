@@ -3,518 +3,524 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aslan Otel Chat</title>
+    <title>Aslan Otel Chat Widget</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        /* Chat Widget Styles */
+        .chat-widget {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        .chat-button {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+            border: none;
+            cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chat-button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .chat-button svg {
+            width: 24px;
+            height: 24px;
+            fill: white;
+            transition: transform 0.3s ease;
+        }
+
+        .chat-button.active svg {
+            transform: rotate(180deg);
         }
 
         .chat-container {
-            width: 400px;
-            height: 600px;
-            background: rgba(255, 255, 255, 0.95);
+            position: absolute;
+            bottom: 80px;
+            right: 0;
+            width: 350px;
+            height: 500px;
+            background: white;
             border-radius: 20px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.2);
-            overflow: hidden;
-            display: flex;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            display: none;
             flex-direction: column;
-            backdrop-filter: blur(20px);
+            overflow: hidden;
+            border: 1px solid #e0e0e0;
         }
 
-        .header {
-            background: linear-gradient(45deg, #667eea, #764ba2);
+        .chat-container.active {
+            display: flex;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 20px;
             text-align: center;
+            position: relative;
         }
 
-        .header h1 {
-            font-size: 20px;
-            margin-bottom: 5px;
+        .chat-header h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
         }
 
-        .header p {
+        .chat-header p {
+            margin: 5px 0 0 0;
             font-size: 14px;
             opacity: 0.9;
         }
 
-        .messages {
+        .close-chat {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background-color 0.2s;
+        }
+
+        .close-chat:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .chat-messages {
             flex: 1;
             padding: 20px;
             overflow-y: auto;
             background: #f8f9fa;
-            color: #333;
         }
 
         .message {
-            margin: 15px 0;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message-content {
+            max-width: 80%;
             padding: 12px 16px;
             border-radius: 18px;
-            max-width: 80%;
             font-size: 14px;
             line-height: 1.4;
         }
 
-        .message.user {
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            color: white;
-            margin-left: auto;
-            border-bottom-right-radius: 6px;
-        }
-
-        .message.bot {
-            background: #e9ecef;
+        .message.bot .message-content {
+            background: white;
             color: #333;
-            border-bottom-left-radius: 6px;
+            border-bottom-left-radius: 4px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
 
-        .typing {
-            display: none;
-            padding: 12px 16px;
-            color: #666;
-            font-style: italic;
-            font-size: 14px;
+        .message.user .message-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-bottom-right-radius: 4px;
         }
 
-        .typing.show {
-            display: block;
-        }
-
-        .input-area {
+        .chat-input-container {
             padding: 20px;
             background: white;
-            border-top: 1px solid #e9ecef;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .chat-input-form {
             display: flex;
             gap: 10px;
-            align-items: center;
         }
 
-        .input-field {
+        .chat-input {
             flex: 1;
             padding: 12px 16px;
-            border: 2px solid #e9ecef;
+            border: 2px solid #e0e0e0;
             border-radius: 25px;
-            outline: none;
             font-size: 14px;
-            transition: border-color 0.3s;
+            outline: none;
+            transition: border-color 0.2s;
         }
 
-        .input-field:focus {
+        .chat-input:focus {
             border-color: #667eea;
         }
 
-        .send-btn {
+        .send-button {
             width: 45px;
             height: 45px;
-            border: none;
             border-radius: 50%;
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            color: white;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             transition: transform 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
         }
 
-        .send-btn:hover {
+        .send-button:hover {
             transform: scale(1.05);
         }
 
-        .send-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
+        .send-button svg {
+            width: 18px;
+            height: 18px;
+            fill: white;
         }
 
-        .voice-btn {
-            width: 45px;
-            height: 45px;
-            border: none;
-            border-radius: 50%;
-            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
-            color: white;
-            cursor: pointer;
-            transition: all 0.2s;
+        .typing-indicator {
+            display: none;
+            padding: 10px 16px;
+            background: white;
+            border-radius: 18px;
+            border-bottom-left-radius: 4px;
+            max-width: 60px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .typing-dots {
             display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            margin-left: 5px;
+            gap: 4px;
         }
 
-        .voice-btn:hover {
-            transform: scale(1.05);
-        }
-
-        .voice-btn.recording {
-            background: linear-gradient(45deg, #ff4757, #c44569);
-            animation: pulse 1s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-        }
-
-        .messages::-webkit-scrollbar {
+        .typing-dots span {
             width: 6px;
+            height: 6px;
+            background: #999;
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
         }
 
-        .messages::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 3px;
+        .typing-dots span:nth-child(2) {
+            animation-delay: 0.2s;
         }
 
-        .messages::-webkit-scrollbar-thumb {
-            background: #c1c1c1;
-            border-radius: 3px;
+        .typing-dots span:nth-child(3) {
+            animation-delay: 0.4s;
         }
 
-        .messages::-webkit-scrollbar-thumb:hover {
-            background: #a8a8a8;
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+            }
+            30% {
+                transform: translateY(-10px);
+            }
         }
 
+        /* Mobile Responsive */
         @media (max-width: 480px) {
             .chat-container {
-                width: 95vw;
-                height: 90vh;
-                margin: 20px;
+                width: calc(100vw - 40px);
+                height: calc(100vh - 120px);
+                bottom: 80px;
+                right: 20px;
+                left: 20px;
             }
+        }
+
+        /* Scrollbar Styling */
+        .chat-messages::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .chat-messages::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 2px;
         }
     </style>
 </head>
 <body>
-    <div class="chat-container">
-        <div class="header">
-            <h1>🏨 Aslan Otel</h1>
-            <p>AI Asistan</p>
-        </div>
+    <!-- Demo sayfa içeriği -->
+    <div style="height: 2000px; padding: 50px;">
+        <h1>Aslan Otel Örnek Sayfa</h1>
+        <p>Bu sayfa chat widget'ını test etmek için hazırlanmıştır. Sağ alt köşedeki chat balonuna tıklayarak rezervasyon asistanımızla konuşabilirsiniz.</p>
+        <p>Diğer sayfa içerikleriniz buraya gelecek...</p>
+    </div>
 
-        <div class="messages" id="messages">
-            <div class="message bot">
-                Merhaba! Size nasıl yardımcı olabilirim?
+    <!-- Chat Widget -->
+    <div class="chat-widget">
+        <button class="chat-button" id="chatButton">
+            <svg viewBox="0 0 24 24">
+                <path d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h4l4 4 4-4h4c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
+            </svg>
+        </button>
+
+        <div class="chat-container" id="chatContainer">
+            <div class="chat-header">
+                <button class="close-chat" id="closeChat">&times;</button>
+                <h3>Aslan Otel</h3>
+                <p>Rezervasyon Asistanı</p>
             </div>
-        </div>
 
-        <div class="typing" id="typing">
-            Yazıyor...
-        </div>
+            <div class="chat-messages" id="chatMessages">
+                <div class="message bot">
+                    <div class="message-content">
+                        Merhaba! Ben Aslan Otel'in rezervasyon asistanıyım. Size nasıl yardımcı olabilirim?
+                    </div>
+                </div>
+            </div>
 
-        <div class="input-area">
-            <input type="text" class="input-field" id="messageInput" 
-                   placeholder="Mesajınızı yazın..." maxlength="500">
-            <button class="send-btn" id="sendBtn">▶</button>
-            <button class="voice-btn" id="voiceBtn">🎤</button>
+            <div class="chat-input-container">
+                <form class="chat-input-form" id="chatForm">
+                    <input type="text" class="chat-input" id="chatInput" placeholder="Mesajınızı yazın..." maxlength="500">
+                    <button type="submit" class="send-button">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                        </svg>
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
 
     <script>
-        const WEBHOOK_URL = 'https://wasakem.app.n8n.cloud/webhook/aslan-hotel-reservation';
-        
-        let sessionId = 'chat-' + Date.now();
-        let isRecording = false;
-        let mediaRecorder = null;
-
-        const messagesDiv = document.getElementById('messages');
-        const messageInput = document.getElementById('messageInput');
-        const sendBtn = document.getElementById('sendBtn');
-        const voiceBtn = document.getElementById('voiceBtn');
-        const typing = document.getElementById('typing');
-
-        // Mesaj gönderme
-        async function sendMessage() {
-            const message = messageInput.value.trim();
-            if (!message) return;
-
-            sendBtn.disabled = true;
-            addMessage('user', message);
-            messageInput.value = '';
-            showTyping();
-
-            try {
-                console.log('Webhook\'a gönderiliyor:', WEBHOOK_URL);
-                console.log('Gönderilen veri:', {
-                    message: message,
-                    sessionId: sessionId,
-                    userId: 'web-user'
-                });
-
-                const response = await fetch(WEBHOOK_URL, {
-                    method: 'POST',
-                    mode: 'cors',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        message: message,
-                        sessionId: sessionId,
-                        userId: 'web-user'
-                    })
-                });
-
-                console.log('Response status:', response.status);
-                console.log('Response ok:', response.ok);
-
-                if (!response.ok) {
-                    console.error('HTTP Error:', response.status, response.statusText);
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-
-                // Response text olarak al, sonra JSON parse et
-                const responseText = await response.text();
-                console.log('Raw response:', responseText);
-
-                let result;
-                try {
-                    result = JSON.parse(responseText);
-                } catch (parseError) {
-                    console.error('JSON Parse Error:', parseError);
-                    console.log('Response is not JSON:', responseText);
-                    hideTyping();
-                    addMessage('bot', 'Yanıt alındı ama JSON formatında değil: ' + responseText.substring(0, 100));
-                    return;
-                }
-
-                console.log('Parsed result:', result);
-                hideTyping();
+        class ChatWidget {
+            constructor() {
+                this.chatButton = document.getElementById('chatButton');
+                this.chatContainer = document.getElementById('chatContainer');
+                this.closeChat = document.getElementById('closeChat');
+                this.chatForm = document.getElementById('chatForm');
+                this.chatInput = document.getElementById('chatInput');
+                this.chatMessages = document.getElementById('chatMessages');
                 
-                // n8n webhook response formatına göre kontrol
-                if (result && result.message) {
-                    addMessage('bot', result.message);
-                } else if (result && result.success && result.message) {
-                    addMessage('bot', result.message);
-                } else if (result && result.output) {
-                    addMessage('bot', result.output);
-                } else if (typeof result === 'string') {
-                    addMessage('bot', result);
+                // n8n webhook URL'inizi buraya ekleyin
+                // Örnek: 'https://your-n8n-domain.com/webhook/5ececbad-50d2-490c-b19d-e4d6318953e5'
+                this.webhookUrl = 'YOUR_N8N_WEBHOOK_URL_HERE';
+                
+                this.isOpen = false;
+                this.init();
+            }
+
+            init() {
+                this.chatButton.addEventListener('click', () => this.toggleChat());
+                this.closeChat.addEventListener('click', () => this.closeChat());
+                this.chatForm.addEventListener('submit', (e) => this.handleSubmit(e));
+                
+                // Enter tuşu ile mesaj gönderme
+                this.chatInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        this.handleSubmit(e);
+                    }
+                });
+            }
+
+            toggleChat() {
+                if (this.isOpen) {
+                    this.closeChatWindow();
                 } else {
-                    console.log('Beklenmeyen response formatı:', result);
-                    addMessage('bot', 'Yanıt alındı: ' + JSON.stringify(result).substring(0, 200));
+                    this.openChat();
                 }
-                
-            } catch (error) {
-                console.error('Fetch hatası:', error);
-                hideTyping();
-                
-                if (error.message.includes('Failed to fetch')) {
-                    addMessage('bot', 'Mesaj gönderildi ama yanıt alınamadı. CORS sorunu olabilir.');
-                } else {
-                    addMessage('bot', 'Hata: ' + error.message);
-                }
-            } finally {
-                sendBtn.disabled = false;
             }
-        }
 
-        // JSONP alternatifi (CORS bypass için)
-        async function sendMessageWithJSONP(message) {
-            try {
-                // URL parametreleri ile GET request
-                const params = new URLSearchParams({
-                    message: message,
-                    sessionId: sessionId,
-                    userId: 'web-user',
-                    method: 'chat'
-                });
-                
-                const getUrl = `${WEBHOOK_URL}?${params.toString()}`;
-                console.log('GET URL:', getUrl);
-                
-                const response = await fetch(getUrl, {
-                    method: 'GET',
-                    mode: 'no-cors'
-                });
-                
-                addMessage('bot', 'Mesajınız alındı. Yanıt için lütfen bekleyin...');
-                
-            } catch (error) {
-                console.error('JSONP hatası:', error);
-                addMessage('bot', 'Bağlantı kurulamadı. Lütfen URL\'yi kontrol edin.');
+            openChat() {
+                this.chatContainer.classList.add('active');
+                this.chatButton.classList.add('active');
+                this.isOpen = true;
+                this.chatInput.focus();
             }
-        }
 
-        // Ses kaydı
-        async function toggleVoiceRecording() {
-            if (isRecording) {
-                stopRecording();
-            } else {
-                startRecording();
+            closeChatWindow() {
+                this.chatContainer.classList.remove('active');
+                this.chatButton.classList.remove('active');
+                this.isOpen = false;
             }
-        }
 
-        async function startRecording() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(stream);
-                const audioChunks = [];
-
-                mediaRecorder.ondataavailable = (event) => {
-                    audioChunks.push(event.data);
-                };
-
-                mediaRecorder.onstop = async () => {
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                    await sendVoiceMessage(audioBlob);
-                    stream.getTracks().forEach(track => track.stop());
-                };
-
-                mediaRecorder.start();
-                isRecording = true;
-                voiceBtn.classList.add('recording');
-                voiceBtn.textContent = '⏹️';
-            } catch (error) {
-                addMessage('bot', 'Mikrofon erişimi reddedildi.');
-            }
-        }
-
-        function stopRecording() {
-            if (mediaRecorder && isRecording) {
-                mediaRecorder.stop();
-                isRecording = false;
-                voiceBtn.classList.remove('recording');
-                voiceBtn.textContent = '🎤';
-            }
-        }
-
-        async function sendVoiceMessage(audioBlob) {
-            const reader = new FileReader();
-            reader.onloadend = async () => {
-                const base64Audio = reader.result.split(',')[1];
+            async handleSubmit(e) {
+                e.preventDefault();
                 
-                addMessage('user', '🎤 Ses mesajı');
-                showTyping();
-                
+                const message = this.chatInput.value.trim();
+                if (!message) return;
+
+                // Kullanıcı mesajını ekle
+                this.addMessage(message, 'user');
+                this.chatInput.value = '';
+
+                // Typing indicator göster
+                this.showTypingIndicator();
+
                 try {
-                    console.log('Ses mesajı gönderiliyor...');
+                    // n8n webhook'una mesaj gönder
+                    const response = await this.sendToWebhook(message);
                     
-                    const response = await fetch(WEBHOOK_URL, {
+                    // Typing indicator gizle
+                    this.hideTypingIndicator();
+                    
+                    // Bot yanıtını ekle
+                    if (response) {
+                        this.addMessage(response, 'bot');
+                    } else {
+                        this.addMessage('Üzgünüm, şu anda yanıt veremiyorum. Lütfen daha sonra tekrar deneyin.', 'bot');
+                    }
+                } catch (error) {
+                    console.error('Chat error:', error);
+                    this.hideTypingIndicator();
+                    
+                    // Hata türüne göre mesaj
+                    let errorMessage = 'Bir hata oluştu. ';
+                    if (error.message.includes('CORS')) {
+                        errorMessage += 'CORS hatası - n8n ayarlarını kontrol edin.';
+                    } else if (error.message.includes('Failed to fetch')) {
+                        errorMessage += 'Webhook URL\'sine ulaşılamıyor.';
+                    } else if (error.message.includes('HTTP error')) {
+                        errorMessage += 'Sunucu hatası: ' + error.message;
+                    } else {
+                        errorMessage += 'Lütfen daha sonra tekrar deneyin.';
+                    }
+                    
+                    this.addMessage(errorMessage, 'bot');
+                }
+            }
+
+            async sendToWebhook(message) {
+                // Webhook URL'sini kontrol et
+                if (this.webhookUrl === 'https://wasakem.app.n8n.cloud/webhook/5ececbad-50d2-490c-b19d-e4d6318953e5') {
+                    console.warn('Webhook URL tanımlanmamış!');
+                    return 'Lütfen webhook URL\'sini config bölümünde tanımlayın.';
+                }
+
+                const payload = {
+                    body: {
+                        messages: [{
+                            from: 'web-widget-user-' + Date.now(),
+                            text: {
+                                body: message
+                            },
+                            audio: {
+                                voice: false
+                            }
+                        }]
+                    }
+                };
+
+                try {
+                    console.log('Webhook\'a gönderilen payload:', payload);
+                    console.log('Webhook URL:', this.webhookUrl);
+
+                    const response = await fetch(this.webhookUrl, {
                         method: 'POST',
-                        mode: 'cors',
-                        headers: { 
+                        headers: {
                             'Content-Type': 'application/json',
-                            'Accept': 'application/json'
+                            'Accept': 'application/json, text/plain, */*',
                         },
-                        body: JSON.stringify({
-                            message: '🎤 Ses mesajı',
-                            audioData: base64Audio,
-                            sessionId: sessionId,
-                            userId: 'web-user'
-                        })
+                        body: JSON.stringify(payload),
+                        mode: 'cors'
                     });
 
-                    console.log('Ses response status:', response.status);
+                    console.log('Response status:', response.status);
+                    console.log('Response headers:', [...response.headers.entries()]);
 
                     if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        const errorText = await response.text();
+                        console.error('Response error:', errorText);
+                        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
                     }
 
                     const responseText = await response.text();
-                    console.log('Ses raw response:', responseText);
+                    console.log('Response text:', responseText);
+                    return responseText;
 
-                    let result;
-                    try {
-                        result = JSON.parse(responseText);
-                    } catch (parseError) {
-                        console.error('Ses JSON Parse Error:', parseError);
-                        hideTyping();
-                        addMessage('bot', 'Ses yanıtı JSON formatında değil: ' + responseText.substring(0, 100));
-                        return;
-                    }
-
-                    console.log('Ses parsed result:', result);
-                    hideTyping();
-                    
-                    if (result && result.message) {
-                        addMessage('bot', result.message);
-                    } else if (result && result.success && result.message) {
-                        addMessage('bot', result.message);
-                    } else if (result && result.output) {
-                        addMessage('bot', result.output);
-                    } else if (typeof result === 'string') {
-                        addMessage('bot', result);
-                    } else {
-                        addMessage('bot', 'Ses yanıtı: ' + JSON.stringify(result).substring(0, 200));
-                    }
-                    
                 } catch (error) {
-                    console.error('Ses gönderme hatası:', error);
-                    hideTyping();
-                    addMessage('bot', 'Ses hatası: ' + error.message);
+                    console.error('Fetch error details:', error);
+                    
+                    // Network hatası kontrolü
+                    if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                        throw new Error('Ağ bağlantısı hatası - CORS veya URL problemi olabilir');
+                    }
+                    throw error;
                 }
-            };
-            reader.readAsDataURL(audioBlob);
-        }
+            }
 
-        function addMessage(sender, text) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${sender}`;
-            messageDiv.textContent = text;
-            messagesDiv.appendChild(messageDiv);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-
-        function showTyping() {
-            typing.classList.add('show');
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-
-        function hideTyping() {
-            typing.classList.remove('show');
-        }
-
-        // URL test fonksiyonu
-        async function testWebhook() {
-            try {
-                console.log('Webhook test ediliyor...');
+            addMessage(text, sender) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${sender}`;
                 
-                // Basit GET request ile test
-                const testUrl = WEBHOOK_URL.replace('/webhook/', '/test/');
-                const response = await fetch(testUrl, {
-                    method: 'GET',
-                    mode: 'no-cors'
-                });
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'message-content';
+                contentDiv.textContent = text;
                 
-                console.log('Test başarılı');
-                addMessage('bot', '✅ Webhook bağlantısı test edildi');
+                messageDiv.appendChild(contentDiv);
+                this.chatMessages.appendChild(messageDiv);
                 
-            } catch (error) {
-                console.error('Test hatası:', error);
-                addMessage('bot', '❌ Webhook test başarısız: ' + error.message);
+                // Otomatik scroll
+                this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+            }
+
+            showTypingIndicator() {
+                const typingDiv = document.createElement('div');
+                typingDiv.className = 'message bot';
+                typingDiv.id = 'typing-indicator';
+                
+                const typingContent = document.createElement('div');
+                typingContent.className = 'typing-indicator';
+                typingContent.style.display = 'block';
+                typingContent.innerHTML = `
+                    <div class="typing-dots">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                `;
+                
+                typingDiv.appendChild(typingContent);
+                this.chatMessages.appendChild(typingDiv);
+                this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+            }
+
+            hideTypingIndicator() {
+                const typingIndicator = document.getElementById('typing-indicator');
+                if (typingIndicator) {
+                    typingIndicator.remove();
+                }
             }
         }
 
-        // Event listeners
-        sendBtn.addEventListener('click', sendMessage);
-        voiceBtn.addEventListener('click', toggleVoiceRecording);
-        messageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendMessage();
+        // Chat widget'ı başlat
+        document.addEventListener('DOMContentLoaded', () => {
+            new ChatWidget();
         });
-
-        // Manual test butonu ekle (geliştirme için)
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-            const testBtn = document.createElement('button');
-            testBtn.textContent = 'Test Webhook';
-            testBtn.style.position = 'fixed';
-            testBtn.style.top = '10px';
-            testBtn.style.right = '10px';
-            testBtn.style.zIndex = '9999';
-            testBtn.onclick = testWebhook;
-            document.body.appendChild(testBtn);
-        }
     </script>
 </body>
 </html>
