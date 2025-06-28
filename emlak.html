@@ -222,7 +222,7 @@
     </div>
 
     <script>
-        const WEBHOOK_URL = 'https://wasakem.app.n8n.cloud/webhook-test/aslan-hotel-reservation';
+        const WEBHOOK_URL = 'https://wasakem.app.n8n.cloud/webhook/aslan-hotel-reservation';
         
         let sessionId = 'chat-' + Date.now();
         let isRecording = false;
@@ -254,6 +254,7 @@
 
                 const response = await fetch(WEBHOOK_URL, {
                     method: 'POST',
+                    mode: 'cors',
                     headers: { 
                         'Content-Type': 'application/json',
                         'Accept': 'application/json'
@@ -266,28 +267,83 @@
                 });
 
                 console.log('Response status:', response.status);
-                console.log('Response headers:', response.headers);
+                console.log('Response ok:', response.ok);
 
                 if (!response.ok) {
+                    console.error('HTTP Error:', response.status, response.statusText);
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
 
-                const result = await response.json();
-                console.log('Webhook yanıtı:', result);
-                
+                // Response text olarak al, sonra JSON parse et
+                const responseText = await response.text();
+                console.log('Raw response:', responseText);
+
+                let result;
+                try {
+                    result = JSON.parse(responseText);
+                } catch (parseError) {
+                    console.error('JSON Parse Error:', parseError);
+                    console.log('Response is not JSON:', responseText);
+                    hideTyping();
+                    addMessage('bot', 'Yanıt alındı ama JSON formatında değil: ' + responseText.substring(0, 100));
+                    return;
+                }
+
+                console.log('Parsed result:', result);
                 hideTyping();
                 
-                if (result.success) {
+                // n8n webhook response formatına göre kontrol
+                if (result && result.message) {
                     addMessage('bot', result.message);
+                } else if (result && result.success && result.message) {
+                    addMessage('bot', result.message);
+                } else if (result && result.output) {
+                    addMessage('bot', result.output);
+                } else if (typeof result === 'string') {
+                    addMessage('bot', result);
                 } else {
-                    addMessage('bot', 'Bir hata oluştu: ' + (result.error || 'Bilinmeyen hata'));
+                    console.log('Beklenmeyen response formatı:', result);
+                    addMessage('bot', 'Yanıt alındı: ' + JSON.stringify(result).substring(0, 200));
                 }
+                
             } catch (error) {
                 console.error('Fetch hatası:', error);
                 hideTyping();
-                addMessage('bot', 'Bağlantı hatası: ' + error.message);
+                
+                if (error.message.includes('Failed to fetch')) {
+                    addMessage('bot', 'Mesaj gönderildi ama yanıt alınamadı. CORS sorunu olabilir.');
+                } else {
+                    addMessage('bot', 'Hata: ' + error.message);
+                }
             } finally {
                 sendBtn.disabled = false;
+            }
+        }
+
+        // JSONP alternatifi (CORS bypass için)
+        async function sendMessageWithJSONP(message) {
+            try {
+                // URL parametreleri ile GET request
+                const params = new URLSearchParams({
+                    message: message,
+                    sessionId: sessionId,
+                    userId: 'web-user',
+                    method: 'chat'
+                });
+                
+                const getUrl = `${WEBHOOK_URL}?${params.toString()}`;
+                console.log('GET URL:', getUrl);
+                
+                const response = await fetch(getUrl, {
+                    method: 'GET',
+                    mode: 'no-cors'
+                });
+                
+                addMessage('bot', 'Mesajınız alındı. Yanıt için lütfen bekleyin...');
+                
+            } catch (error) {
+                console.error('JSONP hatası:', error);
+                addMessage('bot', 'Bağlantı kurulamadı. Lütfen URL\'yi kontrol edin.');
             }
         }
 
@@ -347,6 +403,7 @@
                     
                     const response = await fetch(WEBHOOK_URL, {
                         method: 'POST',
+                        mode: 'cors',
                         headers: { 
                             'Content-Type': 'application/json',
                             'Accept': 'application/json'
@@ -365,20 +422,38 @@
                         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                     }
 
-                    const result = await response.json();
-                    console.log('Ses webhook yanıtı:', result);
-                    
+                    const responseText = await response.text();
+                    console.log('Ses raw response:', responseText);
+
+                    let result;
+                    try {
+                        result = JSON.parse(responseText);
+                    } catch (parseError) {
+                        console.error('Ses JSON Parse Error:', parseError);
+                        hideTyping();
+                        addMessage('bot', 'Ses yanıtı JSON formatında değil: ' + responseText.substring(0, 100));
+                        return;
+                    }
+
+                    console.log('Ses parsed result:', result);
                     hideTyping();
                     
-                    if (result.success) {
+                    if (result && result.message) {
                         addMessage('bot', result.message);
+                    } else if (result && result.success && result.message) {
+                        addMessage('bot', result.message);
+                    } else if (result && result.output) {
+                        addMessage('bot', result.output);
+                    } else if (typeof result === 'string') {
+                        addMessage('bot', result);
                     } else {
-                        addMessage('bot', 'Ses mesajı işlenemedi: ' + (result.error || 'Bilinmeyen hata'));
+                        addMessage('bot', 'Ses yanıtı: ' + JSON.stringify(result).substring(0, 200));
                     }
+                    
                 } catch (error) {
                     console.error('Ses gönderme hatası:', error);
                     hideTyping();
-                    addMessage('bot', 'Ses gönderme hatası: ' + error.message);
+                    addMessage('bot', 'Ses hatası: ' + error.message);
                 }
             };
             reader.readAsDataURL(audioBlob);
@@ -401,12 +476,45 @@
             typing.classList.remove('show');
         }
 
+        // URL test fonksiyonu
+        async function testWebhook() {
+            try {
+                console.log('Webhook test ediliyor...');
+                
+                // Basit GET request ile test
+                const testUrl = WEBHOOK_URL.replace('/webhook/', '/test/');
+                const response = await fetch(testUrl, {
+                    method: 'GET',
+                    mode: 'no-cors'
+                });
+                
+                console.log('Test başarılı');
+                addMessage('bot', '✅ Webhook bağlantısı test edildi');
+                
+            } catch (error) {
+                console.error('Test hatası:', error);
+                addMessage('bot', '❌ Webhook test başarısız: ' + error.message);
+            }
+        }
+
         // Event listeners
         sendBtn.addEventListener('click', sendMessage);
         voiceBtn.addEventListener('click', toggleVoiceRecording);
         messageInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') sendMessage();
         });
+
+        // Manual test butonu ekle (geliştirme için)
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            const testBtn = document.createElement('button');
+            testBtn.textContent = 'Test Webhook';
+            testBtn.style.position = 'fixed';
+            testBtn.style.top = '10px';
+            testBtn.style.right = '10px';
+            testBtn.style.zIndex = '9999';
+            testBtn.onclick = testWebhook;
+            document.body.appendChild(testBtn);
+        }
     </script>
 </body>
 </html>
